@@ -5,8 +5,14 @@
 # `make verify` delegates here so that the same sequence runs in every context.
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# Declared and assigned separately: `readonly x="$(cmd)"` masks the command's
+# exit status, so a failing cd would go unnoticed (ShellCheck SC2155). The
+# template's own `make lint` runs ShellCheck, so this shipped a scaffolded
+# repository whose first lint run failed on a file it had just been given.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+readonly REPO_ROOT
 
 cd "${REPO_ROOT}"
 
