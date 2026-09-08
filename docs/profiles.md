@@ -70,7 +70,9 @@ cp -r template/generic template/go
 ```
 
 1. Edit `template/go/profile.env` — language name, Shields logo slug, minimum version, CodeQL
-   language id, Dependabot ecosystem, linter name.
+   language id, Dependabot ecosystem, linter name, and `SKELETON_PATHS` (the source and test
+   directories that form the runnable example, skipped as a unit when the target already has its
+   own source there).
 2. Rename `make/generic.mk` to `make/go.mk` and implement the nine targets.
 3. Replace `.github/workflows/ci.yml` with a real pipeline, and add the toolchain setup step to
    `release.yml`.

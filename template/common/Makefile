@@ -8,6 +8,7 @@
 #   make/docs.mk     — MkDocs site and ADR scaffolding
 #   make/release.mk  — versioning, build, SBOM, checksums, signing
 #   make/{{LANG_PROFILE}}.mk  — language-specific implementation of the target contract
+#   make/project.mk  — optional, committed, targets that exist only in this project
 #   make/local.mk    — optional, git-ignored, machine-local overrides
 
 SHELL := /bin/bash
@@ -34,4 +35,5 @@ include make/quality.mk
 include make/docs.mk
 include make/release.mk
 include make/{{LANG_PROFILE}}.mk
+-include make/project.mk
 -include make/local.mk

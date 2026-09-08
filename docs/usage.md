@@ -44,6 +44,38 @@ template's version against yours and merge by hand where it is worth it. Only `.
 appended to rather than skipped, and only once — the profile block is marked with a
 `# Profile: <name>` header that the script looks for before appending again.
 
+Two consequences are worth knowing before you run it:
+
+**The source skeleton is written all or not at all.** A profile ships a small package with a CLI
+entry point plus the tests that import it. If the target already has source under the same name,
+the whole skeleton — source, `tests/`, `fuzzing/` — is skipped, because writing only the tests
+would leave them importing a module the scaffolder deliberately did not write. The paths that make
+up the skeleton are declared per profile in `SKELETON_PATHS`.
+
+**The `Makefile` is skipped, so the `make/*.mk` fragments land inert.** The fragments are written,
+but your existing `Makefile` does not include them and nothing changes until you reconcile the two.
+The migration that works:
+
+```bash
+# 1. Keep the identity block and the include chain from the template's Makefile.
+#    template/common/Makefile is the reference; fill in your own project values.
+# 2. Move every target that has no equivalent in the contract into make/project.mk,
+#    which the generated Makefile already includes.
+# 3. Extend a contract target by adding a prerequisite, never by redefining a recipe:
+
+clean: clean-packages          # runs after the fragment's clean, no override warning
+integration-test: docker-suite # adds to the contract target rather than replacing it
+```
+
+Redefining a target that a fragment already defines makes GNU Make print
+`warning: overriding recipe for target` and silently discard the fragment's version. Adding a
+prerequisite with no recipe is the supported way to extend one.
+
+Expect the contract's gates to be stricter than what the repository had. `lint` runs the type
+checker as well as the formatter, and `verify` is `lint test audit`; a project whose previous
+`lint` was formatter-only will surface a backlog on the first run. That backlog is a finding, not a
+reason to loosen the fragment.
+
 ### Replaying a previous run
 
 Every run writes `<target>/.template/answers.env`. After the template gains a new file, re-running

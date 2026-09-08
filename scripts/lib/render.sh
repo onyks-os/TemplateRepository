@@ -52,9 +52,14 @@ render_path() {
     render_string "$path"
 }
 
-# unresolved_placeholders <dir> — print every {{KEY}} left behind, with location.
+# unresolved_placeholders <file>... — print every {{KEY}} left behind, with location.
+#
+# Only the files the scaffolder actually rendered are checked. Scanning the whole
+# target tree instead produces false positives from three directions: virtualenvs
+# and dependency trees vendored under the repository, and first-party source that
+# legitimately contains a doubled brace (an f-string emitting `{` , a Go or Jinja
+# template, a nftables rule block).
 unresolved_placeholders() {
-    grep -rInoE '\{\{[A-Z_]+\}\}' "$1" \
-        --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.venv \
-        2>/dev/null || true
+    (( $# > 0 )) || return 0
+    grep -InoE '\{\{[A-Z_]+\}\}' "$@" 2>/dev/null || true
 }

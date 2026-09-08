@@ -120,7 +120,9 @@ load_answers() {
 }
 
 slugify()  { printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed -e 's/[^a-z0-9]\+/-/g' -e 's/^-//' -e 's/-$//'; }
-acronym()  { printf '%s' "$1" | grep -oE '[A-Z]' | tr -d '\n'; }
+# grep exits 1 when a name has no capitals at all, which under `set -e` would
+# abort the run rather than fall through to the slug.
+acronym()  { printf '%s' "$1" | grep -oE '[A-Z]' | tr -d '\n' || true; }
 
 [[ -n "$ANSWERS_FILE" ]] && load_answers "$ANSWERS_FILE"
 for override in "${CLI_OVERRIDES[@]:-}"; do
@@ -157,8 +159,11 @@ default_slug="$(basename "$(cd "$(dirname "$TARGET")" 2>/dev/null && pwd || echo
 printf '\n%s%s%s\n' "${C_BOLD}" "Project identity" "${C_OFF}"
 ask PROJECT_SLUG  "Repository name"                      "$default_slug"
 ask PROJECT_NAME  "Human-readable project name"          "${VARS[PROJECT_SLUG]}"
-ask PROJECT_SHORT "Short name / acronym"                 "$(acronym "${VARS[PROJECT_NAME]}" | head -c 8)"
-[[ -n "${VARS[PROJECT_SHORT]}" ]] || VARS[PROJECT_SHORT]="${VARS[PROJECT_SLUG]}"
+# The acronym of an all-lowercase name is the empty string, and `ask` treats an
+# empty default as "no value" and refuses to continue in non-interactive mode.
+# Fall back to the slug before asking, not after.
+default_short="$(acronym "${VARS[PROJECT_NAME]}" | head -c 8)"
+ask PROJECT_SHORT "Short name / acronym"                 "${default_short:-${VARS[PROJECT_SLUG]}}"
 ask PROJECT_DESC  "One-line description"                 "TODO: describe ${VARS[PROJECT_NAME]}"
 
 case "$PROFILE" in
@@ -200,6 +205,21 @@ TARGET="$(cd "$TARGET" && pwd)"
 
 declare -i written=0 skipped=0
 declare -a SKIPPED_FILES=()
+declare -a WRITTEN_FILES=()
+
+# Prefixes of the profile skeleton, set when the target already has its own
+# source. Rendered, so they are comparable against the destination path.
+declare -a SKELETON_SKIP=()
+
+# is_skeleton <rendered-rel-path> — true if the path belongs to the skipped skeleton.
+is_skeleton() {
+    local rel="$1" prefix
+    for prefix in "${SKELETON_SKIP[@]:-}"; do
+        [[ -n "$prefix" ]] || continue
+        [[ "$rel" == "$prefix" || "$rel" == "$prefix"/* ]] && return 0
+    done
+    return 1
+}
 
 copy_tree() {
     local src_root="$1" rel dst
@@ -210,10 +230,16 @@ copy_tree() {
         case "$rel" in
             profile.env|.gitignore.append) continue ;;
         esac
-        dst="${TARGET}/$(render_path "$rel")"
+        rel="$(render_path "$rel")"
+        if is_skeleton "$rel"; then
+            SKIPPED_FILES+=("$rel")
+            (( skipped += 1 ))
+            continue
+        fi
+        dst="${TARGET}/${rel}"
 
         if [[ -e "$dst" && $FORCE -eq 0 ]]; then
-            SKIPPED_FILES+=("$(render_path "$rel")")
+            SKIPPED_FILES+=("$rel")
             (( skipped += 1 ))
             continue
         fi
@@ -221,6 +247,7 @@ copy_tree() {
             printf '  %swould write%s %s\n' "${C_DIM}" "${C_OFF}" "${dst#"$TARGET"/}"
         else
             render_file "$src" "$dst"
+            WRITTEN_FILES+=("$dst")
         fi
         (( written += 1 ))
     done < <(find "$src_root" -type f -print0)
@@ -228,12 +255,32 @@ copy_tree() {
 
 log "Scaffolding ${C_BOLD}${VARS[PROJECT_NAME]}${C_OFF} (${PROFILE}) into ${TARGET}"
 copy_tree "${TEMPLATE_DIR}/common"
+
+# The profile skeleton is a runnable example: a package with a CLI entry point
+# and the tests that import it. Writing the tests into a repository that already
+# has its own source of the same name leaves a test referencing a module the
+# scaffolder deliberately skipped, so the skeleton is written all or not at all.
+for path in ${SKELETON_PATHS:-}; do
+    rendered="$(render_path "$path")"
+    if [[ -e "${TARGET}/${rendered}" ]]; then
+        SKELETON_SKIP=()
+        for p in ${SKELETON_PATHS}; do SKELETON_SKIP+=("$(render_path "$p")"); done
+        log "${C_DIM}${TARGET##*/} already has ${rendered}/ — leaving the ${PROFILE} skeleton out.${C_OFF}"
+        break
+    fi
+done
+
 copy_tree "${TEMPLATE_DIR}/${PROFILE}"
 
 # --- .gitignore: base + profile fragment -------------------------------------
 gitignore_append="${TEMPLATE_DIR}/${PROFILE}/.gitignore.append"
 if [[ -f "$gitignore_append" && $DRY_RUN -eq 0 ]]; then
     if ! grep -q "^# Profile: ${PROFILE}$" "${TARGET}/.gitignore" 2>/dev/null; then
+        # A hand-written .gitignore often has no trailing newline, which would
+        # otherwise weld the profile header onto the last existing rule.
+        if [[ -s "${TARGET}/.gitignore" ]] && [[ -n "$(tail -c 1 "${TARGET}/.gitignore")" ]]; then
+            printf '\n' >> "${TARGET}/.gitignore"
+        fi
         {
             printf '\n# Profile: %s\n' "$PROFILE"
             cat "$gitignore_append"
@@ -245,7 +292,10 @@ fi
 license_src="${TEMPLATE_DIR}/licenses/${VARS[LICENSE_ID]}.txt"
 if [[ -f "$license_src" ]]; then
     if [[ ! -e "${TARGET}/LICENSE" || $FORCE -eq 1 ]]; then
-        (( DRY_RUN )) || render_file "$license_src" "${TARGET}/LICENSE"
+        if (( ! DRY_RUN )); then
+            render_file "$license_src" "${TARGET}/LICENSE"
+            WRITTEN_FILES+=("${TARGET}/LICENSE")
+        fi
         (( written += 1 ))
     else
         SKIPPED_FILES+=("LICENSE"); (( skipped += 1 ))
@@ -277,11 +327,12 @@ if (( skipped > 0 )); then
 fi
 
 if (( ! DRY_RUN )); then
-    leftover="$(unresolved_placeholders "$TARGET" | wc -l)"
+    leftover="$(unresolved_placeholders "${WRITTEN_FILES[@]:-}" | wc -l)"
     if (( leftover > 0 )); then
-        warn "${leftover} unresolved {{PLACEHOLDER}} occurrence(s) remain — run: grep -rn '{{' ${TARGET}"
+        warn "${leftover} unresolved {{PLACEHOLDER}} occurrence(s) remain in the rendered files:"
+        unresolved_placeholders "${WRITTEN_FILES[@]:-}" | sed 's/^/    /' >&2
     fi
-    todos="$(grep -rIo --exclude-dir=.git 'TODO(template)' "$TARGET" 2>/dev/null | wc -l)"
+    todos="$(grep -Io 'TODO(template)' "${WRITTEN_FILES[@]:-}" 2>/dev/null | wc -l)"
     printf '\n%sNext steps%s\n' "${C_BOLD}" "${C_OFF}"
     printf '  1. cd %s\n' "$TARGET"
     printf '  2. git init && git add -A && git commit -s -m "chore: scaffold from TemplateRepository"\n'
