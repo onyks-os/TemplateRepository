@@ -50,6 +50,11 @@ site/
 release/
 *.log
 
+# A blanket *.log also swallows test fixtures that happen to be logs - captured
+# tool output committed as test data is source, not build output. Add an
+# exception per directory that holds such fixtures, e.g.
+#   !tests/fixtures/<name>/*.log
+
 # ---------------------------------------------------------------------------
 # Caches
 # ---------------------------------------------------------------------------
