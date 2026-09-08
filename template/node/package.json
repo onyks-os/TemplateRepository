@@ -1,0 +1,53 @@
+{
+  "name": "{{PROJECT_DIST}}",
+  "version": "{{VERSION}}",
+  "description": "{{PROJECT_DESC}}",
+  "license": "{{LICENSE_ID}}",
+  "author": "{{AUTHOR_NAME}}",
+  "type": "module",
+  "engines": {
+    "node": ">={{MIN_LANG_VERSION}}"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "{{PROJECT_PKG}}": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/{{GITHUB_OWNER}}/{{PROJECT_SLUG}}.git"
+  },
+  "homepage": "{{DOCS_URL}}",
+  "bugs": "https://github.com/{{GITHUB_OWNER}}/{{PROJECT_SLUG}}/issues",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint . && prettier --check .",
+    "lint:fix": "eslint . --fix && prettier --write .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^2.0.0",
+    "eslint": "^9.0.0",
+    "fast-check": "^3.21.0",
+    "prettier": "^3.3.0",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^2.0.0"
+  }
+}

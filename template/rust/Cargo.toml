@@ -1,0 +1,51 @@
+[package]
+name = "{{PROJECT_DIST}}"
+version = "{{VERSION}}"
+edition = "2021"
+rust-version = "{{MIN_LANG_VERSION}}"
+description = "{{PROJECT_DESC}}"
+authors = ["{{AUTHOR_NAME}}"]
+license = "{{LICENSE_ID}}"
+readme = "README.md"
+repository = "https://github.com/{{GITHUB_OWNER}}/{{PROJECT_SLUG}}"
+homepage = "{{DOCS_URL}}"
+documentation = "{{DOCS_URL}}"
+keywords = ["{{PROJECT_SLUG}}"]
+categories = []
+exclude = ["docs/", ".github/", "tests/fixtures/"]
+
+[dependencies]
+# TODO(template): declare runtime dependencies, then record each one in DEPENDENCIES.md.
+
+[dev-dependencies]
+proptest = "1"
+
+[profile.release]
+# Fail loudly rather than wrap silently: an integer overflow in release mode is
+# a correctness bug, not a performance optimization.
+overflow-checks = true
+lto = true
+codegen-units = 1
+strip = "symbols"
+
+# ---------------------------------------------------------------------------
+# Lints — enforced by `cargo clippy -- -D warnings` in CI.
+# ---------------------------------------------------------------------------
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+unreachable_pub = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# Panicking paths are banned in library code: a library that panics takes the
+# caller's process down with it.
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+todo = "warn"
+# Project names, acronyms, and file names appear constantly in doc comments and
+# are not code; pedantic's doc_markdown would flag every one of them.
+doc_markdown = "allow"

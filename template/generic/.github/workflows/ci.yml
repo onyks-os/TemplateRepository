@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # TODO(template): add the toolchain setup step for this project.
+
+      - name: ShellCheck
+        run: |
+          found=$(find scripts -name '*.sh' 2>/dev/null || true)
+          if [ -n "$found" ]; then shellcheck $found; else echo "No shell scripts."; fi
+
+      - name: Project linters
+        run: make lint
+
+  test:
+    name: Tests
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # TODO(template): add the toolchain setup step for this project.
+
+      - name: Run tests
+        run: make test
+
+  build:
+    name: Build
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # TODO(template): add the toolchain setup step for this project.
+
+      - name: Build artifacts
+        run: make build

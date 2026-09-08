@@ -1,0 +1,10 @@
+# Every file requires review from the project lead by default.
+# See MAINTAINERS.md for the role definitions.
+*                       @{{GITHUB_OWNER}}
+
+# Security-critical paths — always require an explicit lead sign-off.
+/.github/workflows/     @{{GITHUB_OWNER}}
+/SECURITY.md            @{{GITHUB_OWNER}}
+/docs/security-assessment.md @{{GITHUB_OWNER}}
+
+# TODO(template): add the source paths that carry security-critical logic.

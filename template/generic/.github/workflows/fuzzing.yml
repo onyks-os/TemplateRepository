@@ -1,0 +1,44 @@
+name: Dynamic Analysis (Fuzzing)
+
+on:
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: '0 0 * * 0'   # Weekly, Sunday at midnight UTC
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Fuzz test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # TODO(template): add the toolchain setup step this project needs.
+
+      # Scheduled runs get a much larger budget than pull request runs, so review
+      # stays fast while the weekly job explores the input space deeply.
+      - name: Run property-based tests
+        env:
+          FUZZ_DEEP: ${{ github.event_name == 'schedule' }}
+        run: make fuzz
+
+  gate:
+    name: Dynamic analysis gate
+    runs-on: ubuntu-latest
+    needs: fuzz
+    if: always()
+    steps:
+      - name: Check fuzzing result
+        env:
+          RESULT: ${{ needs.fuzz.result }}
+        run: |
+          if [ "$RESULT" != "success" ]; then
+            echo "::error::Fuzzing failed. See DYNAMIC_ANALYSIS_POLICY.md for the triage process."
+            exit 1
+          fi
+          echo "Dynamic analysis passed."

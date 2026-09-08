@@ -1,0 +1,16 @@
+# Prettier formats source, not prose. Markdown is governed by .markdownlint.yaml,
+# and reformatting it here would fight with the tables and badge blocks in the
+# governance documents.
+*.md
+docs/
+CHANGELOG.md
+
+# Workflows are shared verbatim across every language profile and are formatted
+# for readability, not for Prettier's YAML rules.
+.github/
+
+# Generated or vendored output.
+dist/
+coverage/
+node_modules/
+*.min.js

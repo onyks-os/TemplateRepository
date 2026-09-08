@@ -1,0 +1,10 @@
+
+# ---------------------------------------------------------------------------
+# Rust
+# ---------------------------------------------------------------------------
+/target/
+**/*.rs.bk
+*.pdb
+# Cargo.lock is committed for binaries and ignored for libraries.
+# Uncomment the next line only if this crate is a library.
+# Cargo.lock

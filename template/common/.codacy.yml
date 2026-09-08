@@ -1,0 +1,10 @@
+---
+exclude_paths:
+  - "docs/**"
+  - "**/tests/**"
+  - "**/*.test.*"
+  - "**/testdata/**"
+---
+engines:
+  markdownlint:
+    enabled: false

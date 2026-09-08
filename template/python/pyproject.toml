@@ -1,0 +1,155 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "{{PROJECT_DIST}}"
+version = "{{VERSION}}"
+description = "{{PROJECT_DESC}}"
+readme = "README.md"
+license = { text = "{{LICENSE_ID}}" }
+requires-python = ">={{MIN_LANG_VERSION}}"
+authors = [{ name = "{{AUTHOR_NAME}}" }]
+keywords = ["{{PROJECT_SLUG}}"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    # TODO(template): declare runtime dependencies, then record each one in DEPENDENCIES.md.
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.6.0",
+    "mypy>=1.10.0",
+    "hypothesis>=6.0.0",
+    "pip-audit>=2.7.0",
+    "build>=1.0.0",
+    "twine>=5.0.0",
+    "bump-my-version>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/{{GITHUB_OWNER}}/{{PROJECT_SLUG}}"
+Documentation = "{{DOCS_URL}}"
+Repository = "https://github.com/{{GITHUB_OWNER}}/{{PROJECT_SLUG}}"
+Issues = "https://github.com/{{GITHUB_OWNER}}/{{PROJECT_SLUG}}/issues"
+Changelog = "https://github.com/{{GITHUB_OWNER}}/{{PROJECT_SLUG}}/blob/main/CHANGELOG.md"
+
+[project.scripts]
+{{PROJECT_PKG}} = "{{PROJECT_PKG}}.cli:main"
+
+# ---------------------------------------------------------------------------
+# Build
+# ---------------------------------------------------------------------------
+[tool.hatch.build.targets.wheel]
+packages = ["{{PROJECT_PKG}}"]
+
+[tool.hatch.build.targets.sdist]
+include = ["{{PROJECT_PKG}}", "README.md", "LICENSE", "pyproject.toml"]
+exclude = ["tests", "docs", "scripts", ".github", "dist", "build", "__pycache__"]
+
+# ---------------------------------------------------------------------------
+# Testing
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# fuzz_*.py is collected too, so `pytest fuzzing/` finds the property-based
+# targets without needing each file named explicitly.
+python_files = ["test_*.py", "fuzz_*.py"]
+markers = [
+    "integration: tests that need real system resources or elevated privileges",
+    "slow: tests that take more than a second",
+]
+addopts = "-m 'not integration' --strict-markers"
+
+[tool.coverage.run]
+source = ["{{PROJECT_PKG}}"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError"]
+
+# ---------------------------------------------------------------------------
+# Linting & formatting
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py{{PY_TARGET}}"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "F",     # pyflakes
+    "W",     # pycodestyle warnings
+    "I",     # isort (import sorting)
+    "B",     # flake8-bugbear (bug-prone patterns)
+    "UP",    # pyupgrade (modern syntax)
+    "SIM",   # flake8-simplify
+    "G",     # flake8-logging-format
+    "PIE",   # misc lints
+    "RUF",   # ruff-specific rules
+    "PERF",  # performance anti-patterns
+    "S",     # flake8-bandit (security)
+]
+ignore = [
+    "E501",    # line-too-long (handled by the formatter)
+    "PERF203", # try-except in loop (zero cost on 3.11+)
+    "G004",    # logging f-strings (readability preference)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Assertions and hardcoded test data are expected inside the test suite.
+"tests/**" = ["S101", "S105", "S106"]
+"fuzzing/**" = ["S101"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["{{PROJECT_PKG}}"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+# ---------------------------------------------------------------------------
+# Type checking
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "{{MIN_LANG_VERSION}}"
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_untyped_defs = false
+
+# TODO(template): as modules stabilize, tighten them one at a time:
+# [[tool.mypy.overrides]]
+# module = "{{PROJECT_PKG}}.core"
+# disallow_untyped_defs = true
+
+# ---------------------------------------------------------------------------
+# Version bumping — `bump-my-version bump minor`
+# ---------------------------------------------------------------------------
+[tool.bumpversion]
+current_version = "{{VERSION}}"
+commit = false
+tag = false
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "{{PROJECT_PKG}}/__init__.py"
+search = '__version__ = "{current_version}"'
+replace = '__version__ = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "Makefile"
+search = "VERSION       := {current_version}"
+replace = "VERSION       := {new_version}"
