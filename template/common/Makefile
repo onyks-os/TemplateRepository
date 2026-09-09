@@ -23,7 +23,15 @@ PROJECT_SLUG  := {{PROJECT_SLUG}}
 PROJECT_PKG   := {{PROJECT_PKG}}
 PROJECT_DIST  := {{PROJECT_DIST}}
 GITHUB_OWNER  := {{GITHUB_OWNER}}
-VERSION       := {{VERSION}}
+# Prefer the language manifest over a second copy of the version number. Two
+# copies drift, and the one that drifts is the one nobody edits: a scaffolded
+# project hit exactly this on its first release, with `make release-check`
+# printing the previous version's tag for a tree that built the next one.
+#
+# Falls back to the scaffolded literal, so profiles without a TOML manifest
+# (node, generic) keep working.
+_MANIFEST_VERSION := $(shell grep -h -m1 '^version = ' pyproject.toml Cargo.toml 2>/dev/null | head -1 | cut -d '"' -f2)
+VERSION       := $(or $(_MANIFEST_VERSION),{{VERSION}})
 
 # Directories that hold first-party source, tests, and shell scripts.
 SRC_DIRS     := {{PROJECT_PKG}}
