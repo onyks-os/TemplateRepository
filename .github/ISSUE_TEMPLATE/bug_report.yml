@@ -1,0 +1,66 @@
+name: Bug report
+description: Something the scaffolder or the audit got wrong
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A defect here is copied into every repository scaffolded afterwards, so a precise
+        report is worth a lot. If you can, reproduce it against a throwaway directory.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Which part
+      options:
+        - bootstrap.sh (scaffolding)
+        - openssf-audit.sh (the readiness report)
+        - pin-actions.sh (action pins)
+        - A file under template/ (what gets generated)
+        - Documentation
+        - Something else
+    validations:
+      required: true
+
+  - type: dropdown
+    id: profile
+    attributes:
+      label: Language profile
+      options: [python, node, rust, generic, "not profile-specific"]
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: The exact command, against a directory you do not mind losing.
+      placeholder: |
+        make new TARGET=/tmp/scratch PROFILE=python
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what happened instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Output of `bash --version | head -1`, `git --version`, and your OS.
+      render: shell
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: "`make check` and `make test` were run, and I have included any failure output."
+        - label: This is not a `TODO(template)` marker in a generated repository (those are intentional; `make todo` lists them).

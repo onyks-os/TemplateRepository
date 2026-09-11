@@ -1,0 +1,9 @@
+# Every file requires review from the maintainer by default.
+*                               @onyks-os
+
+# Security-critical paths. A change here is inherited by every repository
+# scaffolded afterwards, which is why they are called out separately.
+/.github/workflows/             @onyks-os
+/template/*/.github/workflows/  @onyks-os
+/scripts/                       @onyks-os
+/SECURITY.md                    @onyks-os

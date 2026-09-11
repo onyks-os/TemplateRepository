@@ -1,5 +1,20 @@
 # Blocks pull requests that introduce a dependency with a known vulnerability
 # or an incompatible license.
+#
+# The findings land in the job summary of this run, not in a pull request
+# comment. Posting a comment needs `pull-requests: write`, and on the `pull_request`
+# trigger a fork's PR gets a read-only token no matter what this file declares —
+# so the comment would silently never appear. The usual "fix" for that is to
+# switch this workflow to `pull_request_target`, which runs with the base
+# repository's token and secrets; add a checkout of the PR head to it and the
+# fork's code executes with write access to this repository. That is OpenSSF
+# Scorecard's Dangerous-Workflow finding, and it is a far worse trade than
+# reading the result in the job summary.
+#
+# If a PR comment is genuinely required, use a second workflow on `workflow_run`
+# that holds the write permission and never checks out untrusted code. See the
+# "Security Best Practices for GitHub Actions" section of CONTRIBUTING.md.
+
 name: Dependency Review
 
 on:
@@ -14,14 +29,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
 
       - name: Review dependencies
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
         with:
           fail-on-severity: high
           # Licenses incompatible with {{LICENSE_ID}}. See SCA_POLICY.md.
           deny-licenses: GPL-3.0, AGPL-3.0, SSPL-1.0
-          comment-summary-in-pr: on-failure

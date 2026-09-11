@@ -181,15 +181,147 @@ have     "citation metadata"                    "CITATION.cff"
 fi
 
 # =========================================================================
+# Workflow safety. Scorecard's Dangerous-Workflow finding is not something a
+# repository grows out of: it is introduced deliberately, by someone trying to
+# make a reporting job comment on a pull request. Checking for it here means the
+# audit catches it in the commit that adds it rather than a Scorecard run later.
+section "Workflow safety (GitHub Actions)"
+
+# Workflow files anywhere in the tree. A generated project keeps them under
+# .github/workflows/; the template that produced it carries one set per language
+# profile. One find covers both, so the template audits its own output too.
+declare -a WORKFLOWS=()
+while IFS= read -r wf; do
+    WORKFLOWS+=("$wf")
+done < <(find "$REPO" \
+    -type d \( -name .git -o -name node_modules -o -name .venv -o -name venv \
+               -o -name target -o -name dist \) -prune -o \
+    -type f -path '*/.github/workflows/*' \( -name '*.yml' -o -name '*.yaml' \) -print 2>/dev/null | sort)
+
+# untrusted_run_interpolations <file> — report `file:line` for every line inside
+# a `run:` block that splices a pull-request-controlled value straight into the
+# shell. Such a value is attacker-authored text, and the runner pastes it into
+# the script before bash ever sees it, so quoting at the shell level is too late.
+untrusted_run_interpolations() {
+    awk '
+        /^[[:space:]]*#/ { next }
+        /^[[:space:]]*$/ { next }
+        {
+            indent = match($0, /[^ ]/) - 1
+            if (in_run && indent <= run_indent) in_run = 0
+            if ($0 ~ /^[[:space:]]*(-[[:space:]]+)?run:/) { in_run = 1; run_indent = indent }
+            if (in_run && $0 ~ /\$[{][{][^}]*github\.(head_ref|event\.(issue|pull_request|comment|review|discussion|commits|head_commit|inputs))/) {
+                printf "%s:%d\n", FILENAME, NR
+            }
+        }
+    ' "$1"
+}
+
+if (( ${#WORKFLOWS[@]} == 0 )); then
+    man "workflow safety"                          "no .github/workflows/ found — nothing to check"
+else
+    wf_label="${#WORKFLOWS[@]} workflow(s)"
+
+    # --- Dangerous-Workflow ---------------------------------------------------
+    # `pull_request_target` runs with the base repository's secrets and a
+    # writable token even for a fork's pull request. That is safe on its own and
+    # a repository compromise the moment the same workflow checks out the code
+    # the pull request controls.
+    declare -a PRT=() PRT_RISKY=()
+    for wf in "${WORKFLOWS[@]}"; do
+        grep -qE '^[[:space:]]*pull_request_target:' "$wf" || continue
+        PRT+=("$wf")
+        if grep -qE 'ref:[[:space:]]*.*\$[{][{][^}]*(github\.event\.pull_request\.(head|merge)|github\.head_ref)' "$wf"; then
+            PRT_RISKY+=("${wf#"$REPO"/}")
+        fi
+    done
+
+    if (( ${#PRT[@]} == 0 )); then
+        ok  "dangerous_workflow (pull_request_target)" "$wf_label, none use the trigger"
+    elif (( ${#PRT_RISKY[@]} > 0 )); then
+        no  "dangerous_workflow (untrusted checkout)" \
+            "${PRT_RISKY[*]} checks out the PR head under pull_request_target — see CONTRIBUTING.md"
+    else
+        man "dangerous_workflow (pull_request_target)" \
+            "${#PRT[@]} workflow(s) use the privileged trigger; confirm none run code the PR controls"
+    fi
+
+    # --- Script injection -----------------------------------------------------
+    declare -a INJECTIONS=()
+    for wf in "${WORKFLOWS[@]}"; do
+        while IFS= read -r hit; do
+            [[ -n "$hit" ]] && INJECTIONS+=("${hit#"$REPO"/}")
+        done < <(untrusted_run_interpolations "$wf")
+    done
+    if (( ${#INJECTIONS[@]} == 0 )); then
+        ok  "no script injection in run: blocks"    "$wf_label"
+    else
+        no  "script injection in run: blocks" \
+            "${INJECTIONS[*]} — pass the value through env: instead of interpolating it"
+    fi
+
+    # --- Token permissions ----------------------------------------------------
+    declare -a UNSCOPED=()
+    for wf in "${WORKFLOWS[@]}"; do
+        grep -qE '^permissions:' "$wf" || UNSCOPED+=("$(basename "$wf")")
+    done
+    if (( ${#UNSCOPED[@]} == 0 )); then
+        ok  "token_permissions (least privilege)"   "$wf_label declare top-level permissions"
+    else
+        no  "token_permissions (least privilege)" \
+            "${UNSCOPED[*]} inherit the default token — add a top-level permissions: block"
+    fi
+
+    # --- Pinned dependencies --------------------------------------------------
+    # A tag is a movable pointer: whoever controls the action's repository can
+    # re-point v4 at different code after it was reviewed here.
+    declare -a UNPINNED=()
+    while IFS= read -r ref; do
+        [[ -z "$ref" ]] && continue
+        case "$ref" in
+            ./*|docker://*) continue ;;                 # local action, or a digest-pinned image
+            *@[0-9a-f]*) [[ "${ref##*@}" =~ ^[0-9a-f]{40}$ ]] && continue ;;
+        esac
+        UNPINNED+=("$ref")
+    done < <(grep -rhoE '^[[:space:]]*-?[[:space:]]*uses:[[:space:]]*[^[:space:]]+' "${WORKFLOWS[@]}" 2>/dev/null \
+             | sed -E 's/.*uses:[[:space:]]*//' | sort -u)
+
+    if (( ${#UNPINNED[@]} == 0 )); then
+        ok  "pinned_dependencies (actions by SHA)"  "$wf_label, every action pinned"
+    else
+        no  "pinned_dependencies (actions by SHA)" \
+            "${#UNPINNED[@]} unpinned: ${UNPINNED[*]}"
+    fi
+fi
+
+# =========================================================================
 section "Documentation debt"
-# Scan only tracked files when this is a git repository: virtualenvs, node_modules,
-# and build caches are full of unrelated template syntax and would poison the count.
+# Scan only files git would keep when this is a git repository: virtualenvs,
+# node_modules, and build caches are full of unrelated template syntax and would
+# poison the count. --untracked matters because the repository this audit is most
+# useful on is one that was scaffolded minutes ago and has nothing committed yet;
+# without it every freshly initialised repository reports zero debt.
+# grep exits 1 on no match, which pipefail would turn into a script failure, so
+# every scan is wrapped in `|| true`.
+# A scaffolded repository carries two kinds of debt: TODO(template) sections
+# nobody has written yet, and {{PLACEHOLDER}} values bootstrap.sh failed to
+# render. Neither concept applies to the scaffolder itself, whose sources and
+# documentation are *made of* those markers, so detect that case and say so
+# rather than reporting its own input as a defect.
+IS_TEMPLATE_SOURCE=0
+[[ -f "${REPO}/scripts/bootstrap.sh" && -d "${REPO}/template" ]] && IS_TEMPLATE_SOURCE=1
+
+# Scan only files git would keep when this is a git repository: virtualenvs,
+# node_modules, and build caches are full of unrelated template syntax and would
+# poison the count. --untracked matters because the repository this audit is most
+# useful on is one that was scaffolded minutes ago and has nothing committed yet;
+# without it every freshly initialised repository reports zero debt.
 # grep exits 1 on no match, which pipefail would turn into a script failure, so
 # every scan is wrapped in `|| true`.
 scan_count() {
     local pattern="$1"
     if git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1; then
-        { git -C "$REPO" grep -IoE "$pattern" -- . 2>/dev/null || true; } | wc -l
+        { git -C "$REPO" grep -IoE --untracked "$pattern" -- . 2>/dev/null || true; } | wc -l
     else
         { grep -rIoE "$pattern" "$REPO" \
             --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.venv \
@@ -197,17 +329,22 @@ scan_count() {
     fi
 }
 
-todo_count="$(scan_count 'TODO\(template\)')"
-placeholder_count="$(scan_count '\{\{[A-Z_]+\}\}')"
-
-if (( todo_count == 0 )); then
-    ok "No TODO(template) markers left" "every section is filled in"
+if (( IS_TEMPLATE_SOURCE )); then
+    printf '  %s•%s not applicable — this repository is the scaffolder, not a scaffolded project\n' \
+        "${C_BLUE}" "${C_OFF}"
 else
-    printf '  %s•%s %s TODO(template) marker(s) still to fill in — run: make todo\n' \
-        "${C_BLUE}" "${C_OFF}" "$todo_count"
-fi
-if (( placeholder_count > 0 )); then
-    no "Unrendered {{PLACEHOLDER}} values" "$placeholder_count occurrence(s); re-run bootstrap.sh or fix by hand"
+    todo_count="$(scan_count 'TODO\(template\)')"
+    placeholder_count="$(scan_count '\{\{[A-Z_]+\}\}')"
+
+    if (( todo_count == 0 )); then
+        ok "No TODO(template) markers left" "every section is filled in"
+    else
+        printf '  %s•%s %s TODO(template) marker(s) still to fill in — run: make todo\n' \
+            "${C_BLUE}" "${C_OFF}" "$todo_count"
+    fi
+    if (( placeholder_count > 0 )); then
+        no "Unrendered {{PLACEHOLDER}} values" "$placeholder_count occurrence(s); re-run bootstrap.sh or fix by hand"
+    fi
 fi
 
 # =========================================================================

@@ -1,3 +1,7 @@
+# This repository is Bash plus GitHub Actions workflows. CodeQL's `actions` pack
+# is the analysis that actually applies to it: it reads the workflows for
+# injection and privilege mistakes, which is precisely the class of defect
+# scripts/openssf-audit.sh also checks for, from a second direction.
 name: CodeQL
 
 on:
@@ -6,7 +10,6 @@ on:
   pull_request:
     branches: ["main"]
   schedule:
-    # Weekly full scan, so findings in unchanged code are still surfaced.
     - cron: '30 18 * * 4'
 
 permissions:
@@ -14,34 +17,25 @@ permissions:
 
 jobs:
   analyze:
-    name: Analyze (${{ matrix.language }})
+    name: Analyze (actions)
     runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
       security-events: write
 
-    strategy:
-      fail-fast: false
-      matrix:
-        language: ["{{CODEQL_LANGUAGE}}"]
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
         with:
-          languages: ${{ matrix.language }}
+          languages: actions
           queries: security-and-quality
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
         with:
-          category: "/language:${{ matrix.language }}"
+          category: "/language:actions"

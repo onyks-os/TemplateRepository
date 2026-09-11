@@ -1,0 +1,51 @@
+# The template's own gate. A scaffolder that ships a broken repository is worse
+# than no scaffolder, so CI generates a repository for every profile and audits
+# the result rather than only linting the sources that produce it.
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      # ubuntu-latest ships shellcheck, but pinning the expectation makes the
+      # failure obvious if that ever stops being true.
+      - name: Check shellcheck is available
+        run: shellcheck --version
+
+      - name: Template consistency
+        run: make check
+
+      - name: End-to-end test suite
+        run: make test
+
+  audit-self:
+    name: Audit the template itself
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      # The scaffolder is not a scaffolded project, so it is not held to the
+      # documentation criteria it renders into its output. Its workflows are
+      # held to the same safety rules as everything it generates.
+      - name: Workflow safety and governance
+        run: ./scripts/openssf-audit.sh . --level passing

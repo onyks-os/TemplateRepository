@@ -13,10 +13,12 @@
 
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly TEMPLATE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEMPLATE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+readonly SCRIPT_DIR TEMPLATE_ROOT
 readonly TEMPLATE_DIR="${TEMPLATE_ROOT}/template"
 
+# shellcheck source-path=SCRIPTDIR
 # shellcheck source=lib/render.sh
 source "${SCRIPT_DIR}/lib/render.sh"
 
@@ -26,7 +28,6 @@ TARGET=""
 PROFILE=""
 ANSWERS_FILE=""
 FORCE=0
-MERGE=0
 DRY_RUN=0
 INTERACTIVE=1
 
@@ -71,7 +72,9 @@ while [[ $# -gt 0 ]]; do
         --profile)         PROFILE="${2:?--profile needs a value}"; shift 2 ;;
         --answers)         ANSWERS_FILE="${2:?--answers needs a value}"; shift 2 ;;
         --set)             CLI_OVERRIDES+=("${2:?--set needs KEY=VALUE}"); shift 2 ;;
-        --merge)           MERGE=1; shift ;;
+        # Skipping existing files is already the default; --merge says so out
+        # loud at the call site and pairs with --force. It sets nothing.
+        --merge)           shift ;;
         --force)           FORCE=1; shift ;;
         --dry-run)         DRY_RUN=1; shift ;;
         --non-interactive) INTERACTIVE=0; shift ;;
@@ -143,7 +146,16 @@ if [[ -z "$PROFILE" ]]; then
         PROFILE="generic"
     fi
 fi
-[[ -d "${TEMPLATE_DIR}/${PROFILE}" ]] || die "Unknown profile '${PROFILE}'. Available: $(cd "$TEMPLATE_DIR" && ls -d */ | grep -v '^common/\|^licenses/' | tr -d '/' | tr '\n' ' ')"
+# available_profiles — every template/<dir> that is not shared scaffolding.
+available_profiles() {
+    local d name
+    for d in "${TEMPLATE_DIR}"/*/; do
+        name="$(basename "$d")"
+        case "$name" in common|licenses) continue ;; esac
+        printf '%s ' "$name"
+    done
+}
+[[ -d "${TEMPLATE_DIR}/${PROFILE}" ]] || die "Unknown profile '${PROFILE}'. Available: $(available_profiles)"
 VARS[LANG_PROFILE]="$PROFILE"
 
 # Profile-supplied defaults (language name, CodeQL id, ecosystem, ...).

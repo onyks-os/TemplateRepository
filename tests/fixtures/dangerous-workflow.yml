@@ -1,0 +1,18 @@
+# Fixture: every workflow-safety check in openssf-audit.sh must fire on this file.
+# It is the shape a reporting job drifts into when someone needs it to comment on
+# a pull request. Do not "fix" it — tests/run-tests.sh asserts it stays broken.
+name: Dangerous
+on:
+  pull_request_target:
+    branches: ["main"]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - run: make test
+      - run: echo "Reviewing ${{ github.event.pull_request.title }}"

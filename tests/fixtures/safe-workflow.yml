@@ -1,0 +1,19 @@
+# Fixture: the safe counterpart. pull_request_target with no checkout of code the
+# pull request controls, everything pinned, permissions declared, and the
+# untrusted title passed through env: instead of spliced into the shell.
+name: Safe
+on:
+  pull_request_target:
+    branches: ["main"]
+permissions:
+  contents: read
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Report the title without interpolating it
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: echo "Reviewing $PR_TITLE"

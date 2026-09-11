@@ -1,0 +1,41 @@
+name: Feature request
+description: Something the template should generate, check, or document
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is missing
+      description: Describe the situation you hit, not the solution you have in mind.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Where it belongs
+      options:
+        - "template/common/ — every generated repository gets it"
+        - "template/<profile>/ — one language only"
+        - "A new language profile"
+        - "The audit (a criterion or check it should report)"
+        - "The scaffolder itself"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+      description: |
+        If this adds a file to a generated repository, say what a project that never opens it
+        loses by not having it. The template's cost is paid by every project it scaffolds.
+    validations:
+      required: true
+
+  - type: input
+    id: prior-art
+    attributes:
+      label: Prior art
+      description: An OpenSSF criterion, or a project that does this well.

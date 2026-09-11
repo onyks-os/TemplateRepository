@@ -9,7 +9,8 @@ SHELL := /bin/bash
 TEMPLATE_DIR := template
 PROFILES     := $(notdir $(patsubst %/,%,$(filter-out $(TEMPLATE_DIR)/common/ $(TEMPLATE_DIR)/licenses/,$(wildcard $(TEMPLATE_DIR)/*/))))
 
-.PHONY: help new dry-run audit check check-shell check-placeholders check-profiles list-vars profiles clean
+.PHONY: help new dry-run audit test check check-shell check-placeholders check-profiles \
+        check-pins pin-actions list-vars profiles clean
 
 ##@ General
 
@@ -22,7 +23,8 @@ help: ## Show this help
 	@printf "\n\033[1mExamples\033[0m\n"
 	@printf "  make new TARGET=../MyTool PROFILE=python\n"
 	@printf "  make new TARGET=../ExistingRepo PROFILE=generic     # merges, never overwrites\n"
-	@printf "  make audit REPO=../TransparentTorProxy\n\n"
+	@printf "  make audit REPO=../TransparentTorProxy\n"
+	@printf "  make test                                            # scaffold every profile and audit it\n\n"
 
 profiles: ## List the available language profiles
 	@printf "Available profiles: %s\n" "$(PROFILES)"
@@ -46,6 +48,13 @@ dry-run: ## Preview a scaffold without writing anything — same arguments as `n
 audit: ## OpenSSF Best Practices readiness report — make audit REPO=<dir>
 	@./scripts/openssf-audit.sh "$(or $(REPO),.)" $(if $(LEVEL),--level $(LEVEL),)
 
+##@ Testing
+
+# The template is verified through its output, not its sources: the suite
+# scaffolds every profile into a temporary directory and asserts on the result.
+test: ## Run the end-to-end test suite
+	@./tests/run-tests.sh $(if $(VERBOSE),-v,)
+
 ##@ Template maintenance
 
 check: check-shell check-profiles check-placeholders ## Verify the template itself is consistent
@@ -54,10 +63,10 @@ check: check-shell check-profiles check-placeholders ## Verify the template itse
 check-shell: ## ShellCheck every script in this repository
 	@if command -v shellcheck >/dev/null 2>&1; then \
 		echo "==> ShellCheck..."; \
-		shellcheck scripts/*.sh scripts/lib/*.sh; \
+		shellcheck -x scripts/*.sh scripts/lib/*.sh tests/*.sh; \
 	else \
 		echo "==> shellcheck not installed; running bash -n instead"; \
-		for f in scripts/*.sh scripts/lib/*.sh; do bash -n "$$f" || exit 1; done; \
+		for f in scripts/*.sh scripts/lib/*.sh tests/*.sh; do bash -n "$$f" || exit 1; done; \
 	fi
 
 check-profiles: ## Verify every profile implements the full lang-* target contract
@@ -87,6 +96,12 @@ check-placeholders: ## List every {{PLACEHOLDER}} used, so none goes unbound
 	[ $$missing -eq 0 ] && echo "  All placeholders are bound." || exit 1
 
 list-vars: check-placeholders ## Alias for check-placeholders
+
+check-pins: ## Report action pins under template/ that have fallen behind
+	@./scripts/pin-actions.sh --check
+
+pin-actions: ## Refresh those pins (stays within the current major version)
+	@./scripts/pin-actions.sh $(if $(ALLOW_MAJOR),--allow-major,)
 
 clean: ## Remove scratch output
 	@rm -rf .scratch/

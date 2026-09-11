@@ -15,7 +15,8 @@
   <a href="#what-you-get">What You Get</a> •
   <a href="#language-profiles">Profiles</a> •
   <a href="#filling-the-documents-in-over-time">Filling Docs In</a> •
-  <a href="#openssf-readiness">OpenSSF</a>
+  <a href="#openssf-readiness">OpenSSF</a> •
+  <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
 ---
@@ -126,8 +127,15 @@ concrete artifacts and reports each one as satisfied, missing, or needing a huma
 factor and coverage thresholds are never assumed to pass. Findings come with the remediation.
 
 A freshly generated repository satisfies 100% of the automatically checkable **passing** and
-**silver** criteria; what remains is the project-specific content the markers ask for, plus the gold
-criteria that depend on having more than one maintainer.
+**silver** criteria, on every profile; what remains is the project-specific content the markers ask
+for, plus the gold criteria that depend on having more than one maintainer.
+
+The audit also reads the workflows themselves, which is where the expensive mistakes live: a
+`pull_request_target` trigger combined with a checkout of the pull request's own code (Scorecard's
+Dangerous-Workflow finding), untrusted input interpolated into a `run:` block, a missing
+`permissions:` block, an action pinned to a movable tag. `pull_request_target` *without* an untrusted
+checkout is reported as needing a human decision rather than quietly passed — it is legitimate, and
+it is one edit away from not being.
 
 ## Repository Layout
 
@@ -135,15 +143,20 @@ criteria that depend on having more than one maintainer.
 ├── Makefile                  # scaffolder entrypoint — make help
 ├── scripts/
 │   ├── bootstrap.sh          # renders template/ into a target repository
-│   ├── openssf-audit.sh      # badge readiness report for any repository
+│   ├── openssf-audit.sh      # badge readiness report + workflow safety checks
+│   ├── pin-actions.sh        # refreshes the action SHA pins under template/
 │   └── lib/render.sh         # placeholder substitution engine
 ├── template/
 │   ├── common/               # everything language-agnostic
 │   ├── python/ node/ rust/   # language profiles
 │   ├── generic/              # starting point for a new profile
 │   └── licenses/             # license texts
+├── tests/
+│   ├── run-tests.sh          # the suite — scaffolds every profile and audits it
+│   └── fixtures/             # a dangerous workflow, and its safe counterpart
 └── docs/
     ├── usage.md              # full scaffolder reference
+    ├── interfaces.md         # every flag, target, and file contract
     ├── profiles.md           # the lang-* contract, and how to add a profile
     ├── placeholders.md       # every {{VARIABLE}} and where it comes from
     └── openssf-checklist.md  # criterion-by-criterion mapping
@@ -152,14 +165,25 @@ criteria that depend on having more than one maintainer.
 ## Maintaining the Template
 
 ```bash
+make test               # end-to-end: scaffold every profile, audit what came out
 make check              # shellcheck + profile contract + placeholder binding
 make check-placeholders # every {{VAR}} used is bound by bootstrap.sh or a profile
 make check-profiles     # every profile implements all nine lang-* targets
+make check-pins         # action pins under template/ that have fallen behind
 ```
+
+The template is verified through its output rather than its sources: `make test` scaffolds all four
+profiles into a temporary directory and asserts that nothing is left unrendered, that the audit
+reports zero missing criteria, and that replaying `answers.env` reproduces the repository
+byte-for-byte. [`CONTRIBUTING.md`](CONTRIBUTING.md) covers adding a check.
 
 Substitution is done with Bash parameter expansion over a fixed key list, not `sed`, so values
 containing slashes need no escaping and GitHub Actions expressions such as `${{ github.ref }}` pass
 through untouched.
+
+Every action in every generated workflow is pinned to a commit SHA. Dependabot maintains this
+repository's own pins but cannot see the copies under `template/`, so `make pin-actions` does that
+job — it reads the version comment on each `uses:` line to decide what "newer" means.
 
 ## License
 

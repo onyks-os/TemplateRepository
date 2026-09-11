@@ -1,5 +1,7 @@
-# OpenSSF Scorecard — automated supply-chain posture assessment.
-# Results appear in the Security tab and feed the Scorecard badge in README.md.
+# OpenSSF Scorecard, run against this repository. A template that ships a
+# Scorecard workflow and never runs one on itself is asking to be taken on faith.
+# Dangerous-Workflow is the check that matters most here: scripts/openssf-audit.sh
+# looks for the same pattern, and this is the independent second opinion on it.
 name: OpenSSF Scorecard
 
 on:
@@ -32,8 +34,6 @@ jobs:
         with:
           results_file: results.sarif
           results_format: sarif
-          # Set to true to publish results at https://api.scorecard.dev — required
-          # for the Scorecard badge to render in the README.
           publish_results: true
 
       - name: Upload artifact

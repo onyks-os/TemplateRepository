@@ -220,18 +220,93 @@ attacks.
   run: echo "PR title: $PR_TITLE"
 ```
 
-### 2. Avoid `pull_request_target` unless strictly necessary
+### 2. Never combine `pull_request_target` with a checkout of the pull request
 
-This trigger runs in the context of the base repository and can expose secrets to malicious code from
-a fork. Prefer `pull_request`.
+`pull_request_target` runs in the context of the **base** repository: it sees the repository secrets
+and gets a token that can write to this repository, even when the pull request comes from a fork.
+That is deliberate — it is the only way a fork's PR can be commented on or labelled. It becomes a
+full repository compromise the moment the same workflow also checks out the fork's code:
+
+```yaml
+# NEVER DO THIS — a fork's code runs with a token that can push to this repository.
+on: pull_request_target
+permissions:
+  pull-requests: write
+jobs:
+  test:
+    steps:
+      - uses: actions/checkout@...
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}   # untrusted code
+      - run: make test                                      # ...executed with write access
+```
+
+Anything the pull request controls counts as "the fork's code": not just `ref:` on the checkout, but
+build scripts, `Makefile` targets, test fixtures, `package.json` lifecycle hooks, and pre-commit
+configuration. OpenSSF Scorecard reports this pattern as **Dangerous-Workflow**.
+
+**How this usually gets introduced.** A reporting job — SAST, SCA, coverage — is asked to comment its
+result on the pull request. That needs `pull-requests: write`, and on the `pull_request` trigger a
+fork's token is read-only regardless of the `permissions:` block, so the comment never appears. The
+first search result says to switch the trigger to `pull_request_target`, and the checkout is already
+sitting in the file. Nobody adds an exploit; the workflow just drifts into one.
+
+**Use one of these three instead.**
+
+1. **Do without the comment.** Every reporting action already writes to `$GITHUB_STEP_SUMMARY`, which
+   is visible on the checks tab and needs no write permission at all. This is what
+   `.github/workflows/dependency-review.yml` does, and it is the right default.
+
+2. **Split privilege from execution with `workflow_run`.** The untrusted job runs under
+   `pull_request` with no permissions and uploads its result as an artifact. A second workflow,
+   triggered by `workflow_run`, holds the write permission, downloads that artifact, and posts the
+   comment — without ever checking out the pull request:
+
+   ```yaml
+   # report.yml — privileged, and touches no untrusted code.
+   on:
+     workflow_run:
+       workflows: ["CI"]
+       types: [completed]
+   permissions:
+     pull-requests: write
+   jobs:
+     comment:
+       runs-on: ubuntu-latest
+       steps:
+         # No actions/checkout of the head ref. Only the artifact is read,
+         # and it is treated as data: never `run:` anything it contains.
+         - uses: actions/download-artifact@...
+           with:
+             run-id: ${{ github.event.workflow_run.id }}
+             github-token: ${{ secrets.GITHUB_TOKEN }}
+             name: report
+   ```
+
+3. **`pull_request_target` with zero checkout of untrusted code.** Legitimate when the job only reads
+   pull request metadata through the API — labelling, size checks, the dependency graph. The rule is
+   absolute: no `actions/checkout` of the head ref, and no execution of any file the pull request can
+   change. If the workflow needs the PR's file contents, it is the wrong tool.
+
+Whichever you pick, keep the privileged workflow short enough to audit in one screen, and remember
+that artifacts from an untrusted run are attacker-controlled data — parse them, never execute them.
 
 ### 3. Pin actions to a full commit SHA
 
-Third-party actions must be pinned to an immutable commit SHA, not a mutable tag:
+Actions must be pinned to an immutable commit SHA, not a mutable tag or branch. A tag can be moved to
+point at different code after review; a SHA cannot. This applies to first-party actions too, because
+`actions/checkout@v4` is just as mutable as any other tag:
 
 ```yaml
-- uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+- uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 ```
+
+Keep the human-readable version in a trailing comment — Dependabot reads it, and updates both the SHA
+and the comment together on the weekly `github-actions` run configured in `.github/dependabot.yml`.
+
+Actions that select their behaviour from the ref name need that behaviour restated as an input once
+the ref is a SHA. `dtolnay/rust-toolchain@stable` becomes a pinned SHA plus an explicit
+`toolchain: stable`, otherwise the pin silently changes which toolchain is installed.
 
 ### 4. Limit `GITHUB_TOKEN` permissions
 
