@@ -75,6 +75,17 @@ scaffold() {
         "$@" > "${WORK}/last-bootstrap.log" 2>&1
 }
 
+# scaffold_bare <dest> — scaffold the way a CI runner or a fresh container does:
+# no global or system git config, and a working directory that is not a git
+# repository, so `git config --get user.email` returns nothing. Running this from
+# inside a checkout that happens to have a local user.email set — which is the
+# normal state of a developer machine — hides the failure entirely.
+scaffold_bare() {
+    ( cd "$WORK" && GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null \
+        "$BOOTSTRAP" --target "$1" --profile generic --non-interactive \
+        --set PROJECT_NAME="alllowercase" )
+}
+
 # grep helpers used as check commands, so the assertion reads as a sentence.
 reports()     { printf '%s' "$2" | grep -q "✘.*$1"; }
 asks_human()  { printf '%s' "$2" | grep -q "?.*$1"; }
@@ -116,6 +127,13 @@ check "a second run into the same target writes nothing" \
     "$(tail -3 "${WORK}/last-bootstrap.log")" \
     grep -q 'Wrote 0 file(s)' "${WORK}/last-bootstrap.log"
 
+# Checking the message is not the same as checking the status. A merge run into
+# an existing repository — the documented way to pull template fixes forward —
+# printed its summary and then exited non-zero, so every caller that tested the
+# exit code saw a failure.
+check "a second run exits 0" "$(tail -3 "${WORK}/last-bootstrap.log")" \
+    scaffold "${WORK}/python" python
+
 scaffold "${WORK}/dryrun" python --dry-run
 check "--dry-run writes no files" "" \
     test -z "$(ls -A "${WORK}/dryrun" 2>/dev/null)"
@@ -133,11 +151,16 @@ check_not "--force does overwrite" "README.md kept the local edit" \
 check_not "an unknown profile is rejected" "bootstrap accepted a profile that does not exist" \
     "$BOOTSTRAP" --target "${WORK}/nope" --profile nosuchprofile --non-interactive
 
-# An all-lowercase name has no acronym, and an empty default used to abort the
-# run in non-interactive mode instead of falling back to the slug.
+# Two defaults that used to be empty, and an empty default aborts a
+# non-interactive run. An all-lowercase name has no acronym; a machine with no
+# git identity has no email to borrow. Both must fall back rather than refuse.
 check "an all-lowercase project name scaffolds non-interactively" "" \
     "$BOOTSTRAP" --target "${WORK}/lowercase" --profile generic --non-interactive \
         --set PROJECT_NAME="alllowercase"
+
+check "scaffolding works on a machine with no git identity" \
+    "$(scaffold_bare "${WORK}/no-identity" 2>&1 | tail -2)" \
+    scaffold_bare "${WORK}/no-identity"
 
 # ---------------------------------------------------------------------------
 describe "Scaffolding — an answers file reproduces the same repository"

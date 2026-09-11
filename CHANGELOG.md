@@ -70,6 +70,15 @@ overwritten.
   silently dead in every generated repository. Found by the new YAML check, which now guards it.
 - **The generic profile shipped no `tests/` directory**, so a repository generated from it failed the
   audit's `test` criterion: it was the one profile that did not reach the 100% the README claims.
+- **A second `bootstrap.sh` run into an existing target exited 2 despite succeeding.** With nothing
+  written, the report step handed `grep` a fabricated empty filename; `grep` exits 2 on a file it
+  cannot open, and `set -e` aborted the script after it had already printed its summary. Merging
+  template fixes into an existing repository — `make new TARGET=<existing-repo>`, the documented
+  path — therefore reported failure to every caller that checked the status.
+- **`bootstrap.sh` could not run non-interactively on a machine with no git identity.** `CONTACT_EMAIL`
+  defaulted to `git config user.email`, and an empty default aborts a non-interactive run — so a CI
+  runner or a fresh container could not scaffold at all. It now falls back to a `TODO(template)`
+  marker, which is what `make todo` already surfaces.
 - `scripts/bootstrap.sh` is clean under ShellCheck: a failing `cd` in the script-root resolution was
   masked by `readonly`'s exit status, `--merge` set a variable nothing read, and the profile list was
   parsed out of `ls`.

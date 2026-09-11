@@ -188,7 +188,13 @@ ask PROJECT_DIST  "Distribution name (registry)"         "$(slugify "${VARS[PROJ
 printf '\n%s%s%s\n' "${C_BOLD}" "Ownership" "${C_OFF}"
 ask GITHUB_OWNER   "GitHub owner"                        "$(git config --get user.github 2>/dev/null || echo onyks-os)"
 ask AUTHOR_NAME    "Author name"                         "$(git config --get user.name 2>/dev/null || echo onyks)"
-ask CONTACT_EMAIL  "Contact email"                       "$(git config --get user.email 2>/dev/null || echo '')"
+# A machine with no git identity — a CI runner, a fresh container, a laptop
+# somebody just set up — has no user.email to borrow, and an empty default aborts
+# a non-interactive run. The contact address is something the template is happy to
+# carry as debt, so fall back to the marker `make todo` already surfaces rather
+# than refusing to scaffold at all.
+ask CONTACT_EMAIL  "Contact email" \
+    "$(git config --get user.email 2>/dev/null || echo 'TODO(template): set a contact email')"
 ask SECURITY_EMAIL "Security reporting email"            "${VARS[CONTACT_EMAIL]}"
 ask LICENSE_ID     "SPDX license identifier"             "MIT"
 
@@ -339,12 +345,21 @@ if (( skipped > 0 )); then
 fi
 
 if (( ! DRY_RUN )); then
-    leftover="$(unresolved_placeholders "${WRITTEN_FILES[@]:-}" | wc -l)"
-    if (( leftover > 0 )); then
-        warn "${leftover} unresolved {{PLACEHOLDER}} occurrence(s) remain in the rendered files:"
-        unresolved_placeholders "${WRITTEN_FILES[@]:-}" | sed 's/^/    /' >&2
+    # A run that wrote nothing — the documented way to pull template fixes into a
+    # repository that already exists — leaves WRITTEN_FILES empty. The "${a[@]:-}"
+    # idiom would hand grep a single empty filename, and grep exits 2 on a file it
+    # cannot open and 1 when nothing matches; under `set -e` with pipefail either
+    # one aborted the script here, so a successful merge run exited non-zero after
+    # printing its summary. Guard on the length and swallow the no-match status.
+    declare -i leftover=0 todos=0
+    if (( ${#WRITTEN_FILES[@]} > 0 )); then
+        leftover="$(unresolved_placeholders "${WRITTEN_FILES[@]}" | wc -l)"
+        if (( leftover > 0 )); then
+            warn "${leftover} unresolved {{PLACEHOLDER}} occurrence(s) remain in the rendered files:"
+            unresolved_placeholders "${WRITTEN_FILES[@]}" | sed 's/^/    /' >&2
+        fi
+        todos="$({ grep -Io 'TODO(template)' "${WRITTEN_FILES[@]}" 2>/dev/null || true; } | wc -l)"
     fi
-    todos="$(grep -Io 'TODO(template)' "${WRITTEN_FILES[@]:-}" 2>/dev/null | wc -l)"
     printf '\n%sNext steps%s\n' "${C_BOLD}" "${C_OFF}"
     printf '  1. cd %s\n' "$TARGET"
     printf '  2. git init && git add -A && git commit -s -m "chore: scaffold from TemplateRepository"\n'
