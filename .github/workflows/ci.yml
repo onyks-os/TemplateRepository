@@ -48,7 +48,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: [node, python]
+        profile: [node, python, rust]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -63,6 +63,12 @@ jobs:
         if: matrix.profile == 'python'
         with:
           python-version: "3.12"
+
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # master
+        if: matrix.profile == 'rust'
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
 
       - name: Scaffold a repository
         run: |
@@ -89,7 +95,16 @@ jobs:
           pip install -e ".[dev]"
           ruff check .
           ruff format --check .
+          mypy tc/
           pytest tests/ -q
+
+      - name: rust — format, lint, test
+        if: matrix.profile == 'rust'
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --all-targets --all-features -- -D warnings
+          cargo test --all-features
 
   audit-self:
     name: Audit the template itself

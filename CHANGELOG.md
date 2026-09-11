@@ -65,8 +65,9 @@ overwritten.
 - `scripts/pin-actions.sh --verify` asserts every pinned SHA names a commit that actually exists, in
   every workflow including this repository's own. Exposed as `make verify-pins`.
 - A CI job that scaffolds a repository and runs its real toolchain — `npm install && npm run lint &&
-  npm run typecheck && npm test`, `pip install -e '.[dev]' && ruff check && pytest`. `make test` stays
-  offline and fast; this is where the defects inspection cannot see get caught.
+  npm run typecheck && npm test`, the python equivalent through ruff, mypy and pytest, and
+  `cargo fmt --check && cargo clippy -D warnings && cargo test`. `make test` stays offline and fast;
+  this is where the defects inspection cannot see get caught.
 
 ### Fixed
 
@@ -90,6 +91,9 @@ overwritten.
   claimed every Markdown file, `mkdocs.yml`, and the workflow YAML — files that markdownlint and the
   docs toolchain already own — so `make lint` and the CI lint job failed before a line was written.
   Prettier now has an explicit scope, with a `.prettierignore` as the backstop for editors.
+- **A freshly scaffolded python repository could not pass `ruff check`.** `fuzzing/fuzz_target.py`
+  used `try`/`except SystemExit`/`pass`, which trips SIM105 — a rule the template's own ruff config
+  deliberately selects. Found the first time CI ran the generated repository's real toolchain.
 - **`.codacy.yml` shipped with a stray `---` in the middle**, so it parsed as two YAML documents and
   every consumer read only the first. The entire `engines:` block — which disables markdownlint — was
   silently dead in every generated repository. Found by the new YAML check, which now guards it.
