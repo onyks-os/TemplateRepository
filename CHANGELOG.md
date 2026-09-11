@@ -35,6 +35,11 @@ overwritten.
   `pull_request_target` escalation path written out), `SAST_POLICY.md`, `DYNAMIC_ANALYSIS_POLICY.md`,
   and `docs/interfaces.md` as the flag-and-target reference.
 - **OpenSSF Scorecard runs against this repository**, not only in what it generates.
+- The audit no longer fails `static_analysis` when there is no `codeql.yml`. CodeQL runs either from
+  a workflow or from GitHub's default setup — a repository setting with no file to find, and one that
+  *blocks* an advanced workflow from uploading its SARIF. A missing file is not evidence of missing
+  analysis, so it goes to the human bucket. The workflow shipped in `template/` now carries a comment
+  explaining how to resolve that conflict when a generated repository hits it.
 - **A YAML check in the test suite**: every shipped `.yml` must parse as exactly one document.
 
 ### Changed

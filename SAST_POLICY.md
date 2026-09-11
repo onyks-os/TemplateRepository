@@ -5,7 +5,7 @@
 | Tool | Over | When |
 | :--- | :--- | :--- |
 | [ShellCheck](https://www.shellcheck.net/) | `scripts/*.sh`, `scripts/lib/*.sh`, `tests/*.sh` | `make check-shell`, `make test`, every push and pull request |
-| [CodeQL](https://codeql.github.com/) (`actions` pack) | Every workflow in `.github/workflows/` | Every push and pull request, plus a weekly full scan |
+| [CodeQL](https://codeql.github.com/) | Workflows (`actions`), plus the JavaScript, Python, and Rust sources under `template/` | GitHub's default setup, on every push and pull request |
 | `scripts/openssf-audit.sh` | Every workflow under any `.github/workflows/` in the tree, including all four profiles' | `make audit`, and the `audit-self` CI job |
 
 This repository is Bash plus GitHub Actions workflows, so those are the two languages worth
@@ -13,6 +13,13 @@ analysing. CodeQL's `actions` pack reads the workflows for injection and privile
 audit checks the same class of defect from a different direction, with rules specific to what this
 template ships. The overlap is deliberate — the audit's rules are ours and can be wrong, and CodeQL
 is an independent opinion.
+
+CodeQL runs through GitHub's **default setup** rather than a workflow in this repository. The two are
+mutually exclusive — an advanced configuration cannot upload its SARIF while default setup is enabled
+— and default setup wins here: it already covers `actions` and picks up the JavaScript, Python, and
+Rust sources under `template/` as well, with no pinned actions to maintain. A repository *generated*
+from this template ships `.github/workflows/codeql.yml` instead, since it cannot know which of the two
+its owner will want; that file carries a comment explaining how to resolve the conflict.
 
 ShellCheck runs with `-x`, so sourced libraries are followed rather than skipped.
 

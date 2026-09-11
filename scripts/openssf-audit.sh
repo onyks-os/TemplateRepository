@@ -119,7 +119,17 @@ contains "warnings (linting enforced)"          "Makefile" "lint" \
 section "PASSING — Security"
 contains "know_secure_design (threat model)"    "docs/security-assessment.md" "stride|threat" \
                                                 "write the STRIDE analysis in docs/security-assessment.md"
-glob_any "static_analysis (CodeQL)"             "add .github/workflows/codeql.yml" ".github/workflows/codeql.yml"
+# CodeQL runs either from a workflow or from GitHub's "default setup", which is a
+# repository setting with no file to find — and the two are mutually exclusive:
+# an advanced configuration cannot upload its SARIF while default setup is on.
+# A missing workflow is therefore not evidence of missing static analysis, so it
+# goes to a human rather than being failed outright.
+if compgen -G "${REPO}/.github/workflows/codeql.yml" > /dev/null; then
+    ok  "static_analysis (CodeQL)"              ".github/workflows/codeql.yml"
+else
+    man "static_analysis (CodeQL)" \
+        "no workflow — confirm CodeQL default setup is enabled in repository settings"
+fi
 have     "static_analysis_common_vulnerabilities" "SAST_POLICY.md"
 have     "dynamic_analysis"                     "DYNAMIC_ANALYSIS_POLICY.md"
 have     "dependency_monitoring"                ".github/dependabot.yml"

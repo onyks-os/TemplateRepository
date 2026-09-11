@@ -1,3 +1,11 @@
+# If this workflow fails with "CodeQL analyses from advanced configurations cannot
+# be processed when the default setup is enabled", the repository has GitHub's
+# default CodeQL setup turned on and the two cannot coexist. Pick one:
+# delete this file and keep default setup (less to maintain, and it picks
+# languages automatically), or turn default setup off under
+# Settings → Code security → Code scanning and keep this workflow (pinned
+# actions, an explicit query suite, and a schedule you control).
+
 name: CodeQL
 
 on:
