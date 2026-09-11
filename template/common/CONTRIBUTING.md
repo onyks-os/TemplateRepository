@@ -304,6 +304,11 @@ point at different code after review; a SHA cannot. This applies to first-party 
 Keep the human-readable version in a trailing comment — Dependabot reads it, and updates both the SHA
 and the comment together on the weekly `github-actions` run configured in `.github/dependabot.yml`.
 
+A major bump of a first-party action is usually a runtime change — Node 20 to Node 24, say — rather
+than an input change. It is still a breaking change for **self-hosted runners**, which must meet the
+minimum runner version the release names before the workflow will run at all. GitHub-hosted runners
+are already there.
+
 Actions that select their behaviour from the ref name need that behaviour restated as an input once
 the ref is a SHA. `dtolnay/rust-toolchain@stable` becomes a pinned SHA plus an explicit
 `toolchain: stable`, otherwise the pin silently changes which toolchain is installed.

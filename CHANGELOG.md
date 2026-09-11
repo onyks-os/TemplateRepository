@@ -54,6 +54,11 @@ overwritten.
 - The Actions security section of `template/common/CONTRIBUTING.md` now gives the three safe patterns
   for posting a privileged comment on a pull request, instead of only saying to avoid
   `pull_request_target`.
+- **Every first-party action is on its current major.** The template shipped `actions/checkout@v4`,
+  `setup-python@v5`, `upload-artifact@v4`, and `stale@v9` — two and three majors behind — so every
+  repository scaffolded from it started out of date. All seven majors involved are Node 20 → Node 24
+  runtime changes with no input changes; they require Actions Runner 2.327.1, which GitHub-hosted
+  runners already meet. `CONTRIBUTING.md` notes the self-hosted caveat.
 - `scripts/pin-actions.sh` picked up `sigstore/gh-action-sigstore-python` sitting five minor versions
   behind on first run; the shipped release workflows now pin v3.5.0.
 
