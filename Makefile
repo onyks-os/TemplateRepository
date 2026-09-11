@@ -10,7 +10,8 @@ TEMPLATE_DIR := template
 PROFILES     := $(notdir $(patsubst %/,%,$(filter-out $(TEMPLATE_DIR)/common/ $(TEMPLATE_DIR)/licenses/,$(wildcard $(TEMPLATE_DIR)/*/))))
 
 .PHONY: help new dry-run audit test check check-shell check-placeholders check-profiles \
-        check-pins verify-pins pin-actions list-vars profiles clean
+        check-pins verify-pins pin-actions list-vars profiles clean \
+        docs docs-build docs-serve docs-sync
 
 ##@ General
 
@@ -105,6 +106,46 @@ verify-pins: ## Assert every pinned SHA in every workflow is a real commit
 
 pin-actions: ## Refresh those pins (stays within the current major version)
 	@./scripts/pin-actions.sh $(if $(ALLOW_MAJOR),--allow-major,)
+
+##@ Documentation
+
+# The site is built from docs/ itself rather than from a copy, so the reference
+# pages the scaffolder is documented by are the same files a reader edits.
+MKDOCS ?= $(shell command -v mkdocs 2>/dev/null || echo mkdocs)
+
+docs: docs-build ## Alias for docs-build
+
+docs-build: docs-sync ## Build the MkDocs documentation site
+	@echo "==> [TemplateRepository] Building MkDocs site..."
+	@if command -v mkdocs >/dev/null 2>&1; then \
+		$(MKDOCS) build --strict; \
+	else \
+		echo "==> mkdocs not found. Install: pip install mkdocs-material"; \
+		exit 1; \
+	fi
+
+docs-serve: ## Serve the documentation with live reload on :8000
+	@echo "==> [TemplateRepository] Starting MkDocs dev server (http://127.0.0.1:8000)..."
+	@if command -v mkdocs >/dev/null 2>&1; then \
+		$(MKDOCS) serve; \
+	else \
+		echo "==> mkdocs not found. Install: pip install mkdocs-material"; \
+		exit 1; \
+	fi
+
+# `0,/re/` rather than `1,/re/`: with `1,`, sed starts looking for the end
+# pattern on line *two*, so a CHANGELOG whose first line is already
+# "# Changelog" never matches and the whole file is deleted.
+docs-sync: ## Mirror the root CHANGELOG into the documentation site
+	@echo "==> [TemplateRepository] Syncing CHANGELOG into the docs site..."
+	@mkdir -p docs/release-notes
+	@{ \
+		echo "# Release Notes & Changelog"; \
+		echo ""; \
+		sed -e '0,/^# Changelog$$/d' CHANGELOG.md; \
+	} | cat -s > docs/release-notes/changelog.md
+
+##@ Housekeeping
 
 clean: ## Remove scratch output
 	@rm -rf .scratch/

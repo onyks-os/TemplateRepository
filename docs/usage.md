@@ -1,7 +1,7 @@
 # Scaffolder Reference
 
 Full reference for `scripts/bootstrap.sh`. For the short version, see the
-[README](../README.md#quick-start).
+[README](https://github.com/onyks-os/TemplateRepository#quick-start).
 
 ## Synopsis
 
