@@ -4,6 +4,11 @@
     "lib": ["ES2022"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+
+    /* Ambient types are declared rather than inherited from whatever happens
+       to be in node_modules/@types. TypeScript 6 stopped including them
+       implicitly, and relying on that was never intentional. */
+    "types": ["node"],
     "outDir": "dist",
     "declaration": true,
     "declarationMap": true,

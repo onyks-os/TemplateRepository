@@ -54,6 +54,11 @@ overwritten.
 - The Actions security section of `template/common/CONTRIBUTING.md` now gives the three safe patterns
   for posting a privileged comment on a pull request, instead of only saying to avoid
   `pull_request_target`.
+- **The node profile's dev dependencies are on their current majors** — eslint 9→10, vitest 2→5 with
+  its coverage plugin, fast-check 3→4, `@types/node` 22→24, TypeScript 5→6. Decided by running the
+  toolchain rather than by reading release notes: TypeScript **7** was tried and rejected, because
+  `typescript-eslint@8` — the latest — caps its peer at `<6.1.0`, so linting breaks entirely. TS 6 is
+  the highest version the ecosystem currently supports.
 - **Every first-party action is on its current major.** The template shipped `actions/checkout@v4`,
   `setup-python@v5`, `upload-artifact@v4`, and `stale@v9` — two and three majors behind — so every
   repository scaffolded from it started out of date. All seven majors involved are Node 20 → Node 24
@@ -91,6 +96,10 @@ overwritten.
   claimed every Markdown file, `mkdocs.yml`, and the workflow YAML — files that markdownlint and the
   docs toolchain already own — so `make lint` and the CI lint job failed before a line was written.
   Prettier now has an explicit scope, with a `.prettierignore` as the backstop for editors.
+- **`tsconfig.json` relied on implicit `@types` inclusion.** TypeScript 6 stopped including every
+  package in `node_modules/@types` automatically, so `process` and `import.meta.url` became
+  unresolved and typescript-eslint's no-unsafe-* rules fired on top. `"types": ["node"]` is now
+  declared, which is what the configuration meant all along.
 - **A freshly scaffolded python repository could not pass `ruff check`.** `fuzzing/fuzz_target.py`
   used `try`/`except SystemExit`/`pass`, which trips SIM105 — a rule the template's own ruff config
   deliberately selects. Found the first time CI ran the generated repository's real toolchain.
