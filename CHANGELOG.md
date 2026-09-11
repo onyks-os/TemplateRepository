@@ -10,7 +10,7 @@ one generated before it*. A generated repository is a copy taken at a point in t
 fix into one you already have, re-run `make new TARGET=<that-repo>` — existing files are never
 overwritten.
 
-## [Unreleased]
+## [0.1.0] - 2026-09-11
 
 ### Added
 
@@ -22,6 +22,9 @@ overwritten.
 - **A `Documentation` workflow.** The site is published from a separate repository holding built
   output, where nothing fails when a link rots; `mkdocs build --strict` and a `docs-sync` diff now
   gate that here, in the repository that owns the sources.
+- **A `Publish Documentation` workflow.** The built site is pushed to
+  `onyks-os.github.io/template-repository` when a release is published, from the
+  released tag, so what is published is by construction a released version.
 - **Workflow-safety checks in `scripts/openssf-audit.sh`.** The audit now reads workflows instead of
   only checking that they exist: it reports Dangerous-Workflow (`pull_request_target` combined with a
   checkout of the pull request's own code), script injection of untrusted context into `run:` blocks,
