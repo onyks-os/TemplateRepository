@@ -36,6 +36,61 @@ jobs:
       - name: End-to-end test suite
         run: make test
 
+  # `make test` is offline and takes seconds, which is what makes it worth running
+  # on every commit — but it can only inspect the generated files, not run them.
+  # The defects that inspection misses are the ones a real toolchain finds: an
+  # unquoted YAML value that only breaks once a placeholder is filled, two
+  # formatters claiming the same files so `npm run lint` fails on a fresh
+  # scaffold. This job pays the install cost to catch that class.
+  toolchain:
+    name: Generated repository runs its own toolchain (${{ matrix.profile }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [node, python]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: matrix.profile == 'node'
+        with:
+          node-version: "22"
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        if: matrix.profile == 'python'
+        with:
+          python-version: "3.12"
+
+      - name: Scaffold a repository
+        run: |
+          ./scripts/bootstrap.sh --target "${RUNNER_TEMP}/generated" \
+            --profile "${{ matrix.profile }}" --non-interactive \
+            --set PROJECT_NAME="Toolchain Check" --set PROJECT_SHORT=TC
+
+      # No `make`, because make targets wrap the toolchain and would hide which
+      # step failed. These are the commands a contributor runs on day one.
+      - name: node — install, lint, typecheck, test
+        if: matrix.profile == 'node'
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          npm install --no-audit --no-fund
+          npm run lint
+          npm run typecheck
+          npm test
+
+      - name: python — install, lint, typecheck, test
+        if: matrix.profile == 'python'
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          ruff check .
+          ruff format --check .
+          pytest tests/ -q
+
   audit-self:
     name: Audit the template itself
     runs-on: ubuntu-latest

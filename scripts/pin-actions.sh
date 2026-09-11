@@ -3,6 +3,7 @@
 # pin-actions.sh — keep the action pins in template/**/.github/workflows/ fresh.
 #
 #   scripts/pin-actions.sh --check          report stale pins, change nothing
+#   scripts/pin-actions.sh --verify          assert every pin resolves to a real commit
 #   scripts/pin-actions.sh                   rewrite stale pins in place
 #   scripts/pin-actions.sh --allow-major     also cross a major version boundary
 #
@@ -27,10 +28,12 @@ readonly SCRIPT_DIR REPO_ROOT
 
 CHECK_ONLY=0
 ALLOW_MAJOR=0
+VERIFY=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --check)       CHECK_ONLY=1; shift ;;
+        --verify)      VERIFY=1; shift ;;
         --allow-major) ALLOW_MAJOR=1; shift ;;
         -h|--help)     sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *)             echo "Unknown option: $1 (try --help)" >&2; exit 2 ;;
@@ -42,7 +45,7 @@ command -v gh >/dev/null 2>&1 || {
     exit 1
 }
 
-readonly C_BOLD=$'\033[1m' C_DIM=$'\033[2m'
+readonly C_BOLD=$'\033[1m' C_DIM=$'\033[2m' C_RED=$'\033[31m'
 readonly C_GREEN=$'\033[32m' C_YELLOW=$'\033[33m' C_OFF=$'\033[0m'
 
 declare -i STALE=0 FRESH=0 UPDATED=0
@@ -65,6 +68,37 @@ latest_tag() {
 
 # sha_for <owner/repo> <ref>
 sha_for() { gh api "repos/${1}/commits/${2}" --jq .sha 2>/dev/null; }
+
+# --- verify -----------------------------------------------------------------
+# A 40-hex string looks like a pin whether or not it names a commit that exists.
+# A typo, a SHA copied from a fork, or one written from memory fails only when
+# the workflow runs, which for a release workflow means at the worst moment.
+# Unlike the rest of this script, verification covers every workflow in the tree,
+# including this repository's own — Dependabot maintains those, but nothing
+# checks that a hand-edited pin points anywhere real.
+if (( VERIFY )); then
+    printf '%s%s%s\n' "${C_BOLD}" "Verifying every pinned SHA resolves" "${C_OFF}"
+    declare -i broken=0 good=0
+    while IFS= read -r ref; do
+        sha="${ref##*@}"
+        path="${ref%@*}"
+        repo="$(printf '%s' "$path" | cut -d/ -f1,2)"
+        if [[ "$(sha_for "$repo" "$sha")" == "$sha" ]]; then
+            (( good += 1 ))
+        else
+            (( broken += 1 ))
+            printf '  %s✘%s %-50s %s%s%s\n' "${C_RED}" "${C_OFF}" "$path" "${C_DIM}" "${sha:0:12} does not exist in ${repo}" "${C_OFF}"
+        fi
+    done < <(find "$REPO_ROOT" -type d -name .git -prune -o \
+                -type f -path '*/.github/workflows/*' \( -name '*.yml' -o -name '*.yaml' \) \
+                -exec grep -ohE 'uses: [^@[:space:]]+@[0-9a-f]{40}' {} + 2>/dev/null \
+             | sed 's/uses: //' | sort -u)
+
+    printf '\n%s%s%s\n  %s%d resolve%s   %s%d broken%s\n' \
+        "${C_BOLD}" "Summary" "${C_OFF}" \
+        "${C_GREEN}" "$good" "${C_OFF}" "${C_RED}" "$broken" "${C_OFF}"
+    exit $(( broken > 0 ))
+fi
 
 printf '%s%s%s\n' "${C_BOLD}" "Action pins in template/**/.github/workflows/" "${C_OFF}"
 

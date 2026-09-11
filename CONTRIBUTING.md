@@ -85,10 +85,15 @@ them by hand:
 
 ```bash
 scripts/pin-actions.sh --check      # report what is stale
+scripts/pin-actions.sh --verify     # assert every pin names a commit that exists
 scripts/pin-actions.sh              # rewrite, staying within the current major
 scripts/pin-actions.sh --allow-major
 make test
 ```
+
+Run `--verify` after editing a pin by hand. A 40-hex string looks like a pin whether or not it names
+a real commit, and a typo surfaces only when the workflow runs — which for a release workflow means
+at the worst possible moment.
 
 It needs an authenticated `gh`. Read the diff before committing: an action that changed major version
 may need its inputs adjusted.

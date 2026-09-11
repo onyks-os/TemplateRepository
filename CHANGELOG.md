@@ -62,6 +62,12 @@ overwritten.
 - `scripts/pin-actions.sh` picked up `sigstore/gh-action-sigstore-python` sitting five minor versions
   behind on first run; the shipped release workflows now pin v3.5.0.
 
+- `scripts/pin-actions.sh --verify` asserts every pinned SHA names a commit that actually exists, in
+  every workflow including this repository's own. Exposed as `make verify-pins`.
+- A CI job that scaffolds a repository and runs its real toolchain — `npm install && npm run lint &&
+  npm run typecheck && npm test`, `pip install -e '.[dev]' && ruff check && pytest`. `make test` stays
+  offline and fast; this is where the defects inspection cannot see get caught.
+
 ### Fixed
 
 - **`dependency-review.yml` shipped a feature that could not work.** It set
@@ -75,6 +81,15 @@ overwritten.
   case the audit exists for — always looked clean. It now passes `--untracked`.
 - The debt scan no longer reports the scaffolder's own sources as unrendered placeholders when the
   audit is run against this repository.
+- **Every generated `mkdocs.yml` was invalid YAML.** `site_description: {{PROJECT_DESC}}` was
+  unquoted, and the default description is `TODO: describe <project>` — an unquoted YAML value
+  containing `": "` is a syntax error, not a string. The shipped docs workflow runs
+  `mkdocs build --strict`, so the Documentation job failed on day one in every repository scaffolded
+  from any profile. Every other structured file already quoted the value; only this one did not.
+- **A freshly scaffolded node repository could not pass its own `npm run lint`.** `prettier --check .`
+  claimed every Markdown file, `mkdocs.yml`, and the workflow YAML — files that markdownlint and the
+  docs toolchain already own — so `make lint` and the CI lint job failed before a line was written.
+  Prettier now has an explicit scope, with a `.prettierignore` as the backstop for editors.
 - **`.codacy.yml` shipped with a stray `---` in the middle**, so it parsed as two YAML documents and
   every consumer read only the first. The entire `engines:` block — which disables markdownlint — was
   silently dead in every generated repository. Found by the new YAML check, which now guards it.

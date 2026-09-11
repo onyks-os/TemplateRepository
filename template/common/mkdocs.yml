@@ -1,6 +1,8 @@
 site_name: {{PROJECT_SHORT}} - {{PROJECT_NAME}}
 site_url: {{DOCS_URL}}
-site_description: {{PROJECT_DESC}}
+# Quoted: the default description is "TODO: describe <project>", and an unquoted
+# YAML value containing ": " is a syntax error, not a string.
+site_description: "{{PROJECT_DESC}}"
 site_author: {{GITHUB_OWNER}}
 site_dir: {{DOCS_SITE_DIR}}
 docs_dir: docs/web

@@ -268,16 +268,30 @@ check "every profile implements the full lang-* contract" "gaps:${contract_gaps}
     test -z "$contract_gaps"
 
 # ---------------------------------------------------------------------------
-describe "YAML — every shipped file parses as one document"
+describe "Structured files — in the sources, and in what they render to"
 # ---------------------------------------------------------------------------
+# Two failure modes, and the second is only visible after rendering.
+#
 # A stray `---` in the middle of a config splits it into two documents, and every
 # consumer reads only the first. Nothing errors; the second half is simply
 # ignored. That is how .codacy.yml shipped with its entire engines: block dead.
+#
+# And a template file can be valid YAML with its placeholders in place and invalid
+# once they are filled: the default description is "TODO: describe <project>", and
+# an unquoted YAML value containing ": " is a syntax error. Every generated
+# mkdocs.yml was broken that way, which `mkdocs build --strict` in the shipped
+# docs workflow would have failed on. Checking the sources alone cannot see it,
+# so the rendered repositories are checked too.
 if python3 -c 'import yaml' 2>/dev/null; then
-    python3 - "$REPO_ROOT" > "${WORK}/yaml.log" 2>&1 <<'PYEOF'
-import pathlib, sys, yaml
+    python3 - "$REPO_ROOT" "${WORK}/python" "${WORK}/node" "${WORK}/rust" "${WORK}/generic" \
+        > "${WORK}/yaml.log" 2>&1 <<'PYEOF'
+import json, pathlib, sys, yaml
 
-root = pathlib.Path(sys.argv[1])
+try:
+    import tomllib
+except ImportError:
+    tomllib = None
+
 bad = []
 
 class Lenient(yaml.SafeLoader):
@@ -287,29 +301,56 @@ Lenient.add_multi_constructor("", lambda loader, suffix, node: None)
 Lenient.add_multi_constructor("tag:yaml.org,2002:python/name:",
                               lambda loader, suffix, node: None)
 
-for path in sorted(root.rglob("*.yml")) + sorted(root.rglob("*.yaml")):
-    rel = path.relative_to(root)
-    if rel.parts[0] in {".git", "node_modules", ".venv"}:
-        continue
-    text = path.read_text()
-    # Placeholders are not YAML until they are rendered.
-    text = text.replace("{{", "PLACEHOLDER_").replace("}}", "_PLACEHOLDER")
-    try:
-        docs = list(yaml.load_all(text, Loader=Lenient))
-    except Exception as exc:
-        bad.append(f"{rel}: {str(exc).splitlines()[0]}")
-        continue
-    if len(docs) > 1:
-        bad.append(f"{rel}: parses as {len(docs)} documents; a consumer reads only the first")
+SKIP = {".git", "node_modules", ".venv", "venv", "target", "dist", "site"}
+JSONC = __import__("re").compile(r"^(tsconfig.*|jsconfig.*|devcontainer)\.json$")
+
+def check(root: pathlib.Path, render: bool) -> None:
+    """render=True for template sources, whose placeholders are not yet values."""
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or set(path.relative_to(root).parts) & SKIP:
+            continue
+        rel = f"{root.name}/{path.relative_to(root)}" if not render else str(path.relative_to(root))
+        text = path.read_text(errors="replace")
+        if render:
+            text = text.replace("{{", "PLACEHOLDER_").replace("}}", "_PLACEHOLDER")
+
+        if path.suffix in {".yml", ".yaml"} or path.name.endswith(".cff"):
+            try:
+                docs = list(yaml.load_all(text, Loader=Lenient))
+            except Exception as exc:
+                bad.append(f"{rel}: {str(exc).splitlines()[0]}")
+                continue
+            if len(docs) > 1:
+                bad.append(f"{rel}: parses as {len(docs)} documents; a consumer reads only the first")
+        elif path.suffix == ".json" and not JSONC.match(path.name):
+            # tsconfig.json and friends are JSONC by design — TypeScript accepts
+            # comments and trailing commas there, and a strict parser must not
+            # call that a defect.
+            try:
+                json.loads(text)
+            except Exception as exc:
+                bad.append(f"{rel}: {str(exc).splitlines()[0]}")
+        elif path.suffix == ".toml" and tomllib is not None:
+            try:
+                tomllib.loads(text)
+            except Exception as exc:
+                bad.append(f"{rel}: {str(exc).splitlines()[0]}")
+
+check(pathlib.Path(sys.argv[1]), render=True)
+for generated in sys.argv[2:]:
+    root = pathlib.Path(generated)
+    if root.is_dir():
+        check(root, render=False)
 
 for line in bad:
     print(line)
 sys.exit(1 if bad else 0)
 PYEOF
-    check "every .yml/.yaml file is a single valid document" "$(head -10 "${WORK}/yaml.log")" \
+    check "every YAML, JSON and TOML file parses — sources and rendered output" \
+        "$(head -10 "${WORK}/yaml.log")" \
         test ! -s "${WORK}/yaml.log"
 else
-    pass "YAML parse check skipped (python3 with PyYAML not available)"
+    pass "structured-file check skipped (python3 with PyYAML not available)"
 fi
 
 # ---------------------------------------------------------------------------

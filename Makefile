@@ -10,7 +10,7 @@ TEMPLATE_DIR := template
 PROFILES     := $(notdir $(patsubst %/,%,$(filter-out $(TEMPLATE_DIR)/common/ $(TEMPLATE_DIR)/licenses/,$(wildcard $(TEMPLATE_DIR)/*/))))
 
 .PHONY: help new dry-run audit test check check-shell check-placeholders check-profiles \
-        check-pins pin-actions list-vars profiles clean
+        check-pins verify-pins pin-actions list-vars profiles clean
 
 ##@ General
 
@@ -99,6 +99,9 @@ list-vars: check-placeholders ## Alias for check-placeholders
 
 check-pins: ## Report action pins under template/ that have fallen behind
 	@./scripts/pin-actions.sh --check
+
+verify-pins: ## Assert every pinned SHA in every workflow is a real commit
+	@./scripts/pin-actions.sh --verify
 
 pin-actions: ## Refresh those pins (stays within the current major version)
 	@./scripts/pin-actions.sh $(if $(ALLOW_MAJOR),--allow-major,)

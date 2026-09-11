@@ -17,6 +17,7 @@ reference; [`usage.md`](usage.md) is the narrative walkthrough.
 | `make check-profiles` | Assert every profile implements all nine `lang-*` targets. |
 | `make check-placeholders` | List every `{{VAR}}` used and fail on one nothing binds. |
 | `make check-pins` | Report action pins under `template/` that have fallen behind. |
+| `make verify-pins` | Assert every pinned SHA in every workflow names a real commit. |
 | `make pin-actions` | Rewrite those pins to the newest release in the current major. |
 | `make profiles` | List the available language profiles. |
 | `make clean` | Remove `.scratch/`. |
@@ -100,6 +101,7 @@ scripts/pin-actions.sh [--check] [--allow-major]
 | Flag | Meaning |
 | :--- | :--- |
 | `--check` | Report stale pins and exit `1` if any. Writes nothing. |
+| `--verify` | Assert every pinned SHA resolves to a real commit in that action's repository. Covers every workflow in the tree, this repository's own included. Exits `1` on any that does not. |
 | `--allow-major` | Consider releases beyond the current major version. |
 
 Requires an authenticated `gh`. It reads the trailing version comment on each `uses:` line to decide

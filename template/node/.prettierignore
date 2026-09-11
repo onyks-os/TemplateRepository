@@ -1,16 +1,21 @@
-# Prettier formats source, not prose. Markdown is governed by .markdownlint.yaml,
-# and reformatting it here would fight with the tables and badge blocks in the
-# governance documents.
+# `npm run lint` already gives prettier an explicit list of what it formats —
+# this project's TypeScript and its JSON — so this file is the backstop for
+# editor integrations that run prettier over whatever is open.
+#
+# The boundary is ownership, not strictness. Markdown belongs to markdownlint
+# (.markdownlint.yaml, `make lint-docs`); mkdocs.yml and docs/ belong to the docs
+# toolchain; .github/workflows/ is YAML that actionlint and CodeQL read. A second
+# formatter with its own opinion about those files does not make the project
+# tidier, it makes `make lint` fail on a fresh scaffold.
 *.md
+mkdocs.yml
 docs/
-CHANGELOG.md
-
-# Workflows are shared verbatim across every language profile and are formatted
-# for readability, not for Prettier's YAML rules.
+site/
 .github/
 
-# Generated or vendored output.
+# Generated, vendored, or produced by a build.
 dist/
 coverage/
 node_modules/
+package-lock.json
 *.min.js

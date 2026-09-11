@@ -35,8 +35,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint . && prettier --check .",
-    "lint:fix": "eslint . --fix && prettier --write .",
+    "lint": "eslint . && prettier --check \"{src,tests}/**/*.{ts,tsx,js,mjs,cjs}\" \"*.json\"",
+    "lint:fix": "eslint . --fix && prettier --write \"{src,tests}/**/*.{ts,tsx,js,mjs,cjs}\" \"*.json\"",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
