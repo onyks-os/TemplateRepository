@@ -186,8 +186,8 @@ ask PROJECT_PKG   "Package / module name"                "$default_pkg"
 ask PROJECT_DIST  "Distribution name (registry)"         "$(slugify "${VARS[PROJECT_SLUG]}")"
 
 printf '\n%s%s%s\n' "${C_BOLD}" "Ownership" "${C_OFF}"
-ask GITHUB_OWNER   "GitHub owner"                        "$(git config --get user.github 2>/dev/null || echo onyks-os)"
-ask AUTHOR_NAME    "Author name"                         "$(git config --get user.name 2>/dev/null || echo onyks)"
+ask GITHUB_OWNER   "GitHub owner"                        "$(git config --get user.github 2>/dev/null || echo 'TODO(template): set a GitHub owner')"
+ask AUTHOR_NAME    "Author name"                         "$(git config --get user.name 2>/dev/null || echo 'TODO(template): set an author name')"
 # A machine with no git identity — a CI runner, a fresh container, a laptop
 # somebody just set up — has no user.email to borrow, and an empty default aborts
 # a non-interactive run. The contact address is something the template is happy to

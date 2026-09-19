@@ -18,8 +18,8 @@ registered key.
 | `PROJECT_DESC` | One-line description | `TODO: describe …` | `Routes all system traffic through Tor` |
 | `PROJECT_PKG` | Package / module name | Slug of `PROJECT_SHORT` | `ttp` |
 | `PROJECT_DIST` | Distribution name | Slug of `PROJECT_SLUG` | `transparent-tor-proxy` |
-| `GITHUB_OWNER` | GitHub owner | `git config user.github` | `onyks-os` |
-| `AUTHOR_NAME` | Author name | `git config user.name` | `onyks` |
+| `GITHUB_OWNER` | GitHub owner | `git config user.github` | `acme-inc` |
+| `AUTHOR_NAME` | Author name | `git config user.name` | `Ada Lovelace` |
 | `CONTACT_EMAIL` | Contact email | `git config user.email` | `you@example.com` |
 | `SECURITY_EMAIL` | Security reporting email | `CONTACT_EMAIL` | `sec@example.com` |
 | `LICENSE_ID` | SPDX identifier | `MIT` | `Apache-2.0` |
@@ -33,8 +33,8 @@ registered key.
 | :---------- | :----------- | :------ |
 | `COPYRIGHT_YEAR` | Current year | `2026` |
 | `DATE` | Today, ISO 8601 | `2026-09-03` |
-| `DOCS_URL` | `GITHUB_OWNER` + `DOCS_SLUG` | `https://onyks-os.github.io/ttp/` |
-| `DOCS_SITE_DIR` | MkDocs output, matching the GitHub Pages repo layout | `../onyks-os.github.io/ttp` |
+| `DOCS_URL` | `GITHUB_OWNER` + `DOCS_SLUG` | `https://acme-inc.github.io/ttp/` |
+| `DOCS_SITE_DIR` | MkDocs output, matching the GitHub Pages repo layout | `../acme-inc.github.io/ttp` |
 | `PROJECT_ENV_PREFIX` | `PROJECT_SHORT`, upper-cased | `TTP` |
 | `PY_TARGET` | `MIN_LANG_VERSION` without dots — Ruff's `target-version` | `310` |
 | `CRATE_NAME` | `PROJECT_DIST` with `-` → `_` — Rust resolves library crates this way | `transparent_tor_proxy` |
