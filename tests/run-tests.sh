@@ -117,6 +117,14 @@ for profile in "${PROFILES[@]}"; do
     done
     check "${profile}: the load-bearing files exist" "missing:${missing}" \
         test -z "$missing"
+
+    # setup-python's pip cache fails the docs job when no dependency file
+    # matches, which is every profile without a pyproject.toml. It must be
+    # keyed on the pinned documentation toolchain, and that file must exist.
+    check "${profile}: docs job keys its pip cache on docs/requirements.txt" "" \
+        grep -q 'cache-dependency-path: docs/requirements.txt' "${dest}/.github/workflows/docs.yml"
+    check "${profile}: docs/requirements.txt pins the documentation toolchain" "" \
+        grep -q '^mkdocs-material==' "${dest}/docs/requirements.txt"
 done
 
 # ---------------------------------------------------------------------------

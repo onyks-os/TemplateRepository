@@ -1,0 +1,4 @@
+# Documentation toolchain, pinned so that the CI build matches a local
+# `make docs`. Install with: pip install -r docs/requirements.txt
+mkdocs==1.6.1
+mkdocs-material==9.7.7
