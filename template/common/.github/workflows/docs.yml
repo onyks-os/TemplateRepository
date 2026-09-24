@@ -22,11 +22,14 @@ jobs:
         with:
           python-version: "3.12"
           cache: "pip"
+          # Keyed on the pinned toolchain: without a dependency file the pip cache
+          # fails the job, or silently keys on an unrelated pyproject.toml.
+          cache-dependency-path: docs/requirements.txt
 
       - name: Install documentation toolchain
         run: |
           python -m pip install --upgrade pip
-          pip install mkdocs-material mkdocs
+          pip install -r docs/requirements.txt
 
       # --strict turns broken links and missing nav entries into build failures,
       # so documentation rot is caught in review rather than after publication.

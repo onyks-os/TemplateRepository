@@ -186,15 +186,15 @@ ask PROJECT_PKG   "Package / module name"                "$default_pkg"
 ask PROJECT_DIST  "Distribution name (registry)"         "$(slugify "${VARS[PROJECT_SLUG]}")"
 
 printf '\n%s%s%s\n' "${C_BOLD}" "Ownership" "${C_OFF}"
-ask GITHUB_OWNER   "GitHub owner"                        "$(git config --get user.github 2>/dev/null || echo 'TODO(template): set a GitHub owner')"
-ask AUTHOR_NAME    "Author name"                         "$(git config --get user.name 2>/dev/null || echo 'TODO(template): set an author name')"
+ask GITHUB_OWNER   "GitHub owner"                        "$(git config --get user.github 2>/dev/null || echo 'TODO(template)-github-owner')"
+ask AUTHOR_NAME    "Author name"                         "$(git config --get user.name 2>/dev/null || echo 'TODO(template) author name')"
 # A machine with no git identity — a CI runner, a fresh container, a laptop
 # somebody just set up — has no user.email to borrow, and an empty default aborts
 # a non-interactive run. The contact address is something the template is happy to
 # carry as debt, so fall back to the marker `make todo` already surfaces rather
 # than refusing to scaffold at all.
 ask CONTACT_EMAIL  "Contact email" \
-    "$(git config --get user.email 2>/dev/null || echo 'TODO(template): set a contact email')"
+    "$(git config --get user.email 2>/dev/null || echo 'TODO(template)-contact-email')"
 ask SECURITY_EMAIL "Security reporting email"            "${VARS[CONTACT_EMAIL]}"
 ask LICENSE_ID     "SPDX license identifier"             "MIT"
 
